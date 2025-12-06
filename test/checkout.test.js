@@ -37,12 +37,12 @@ describe('Checkout Utilities', () => {
   describe('generateCheckoutReference', () => {
     it('generates reference with default prefix', () => {
       const ref = generateCheckoutReference(123);
-      expect(ref).toMatch(/^ndi-123-\d+-[a-z0-9]{6}$/);
+      expect(ref).toMatch(/^ndi-123-\d+-[a-z0-9]{8}$/);
     });
 
     it('generates reference with custom prefix', () => {
       const ref = generateCheckoutReference(456, 'join');
-      expect(ref).toMatch(/^join-456-\d+-[a-z0-9]{6}$/);
+      expect(ref).toMatch(/^join-456-\d+-[a-z0-9]{8}$/);
     });
 
     it('includes timestamp', () => {
