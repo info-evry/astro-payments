@@ -27,7 +27,7 @@ jobs:
         run: bun install
 
       - name: Run tests
-        run: bun test
+        run: bunx vitest run
 
   snyk:
     name: Security Scan
