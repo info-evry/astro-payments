@@ -1,0 +1,379 @@
+---
+/**
+ * PaymentWidget.astro
+ * Reusable SumUp card payment widget for Astro projects
+ *
+ * @example
+ * <PaymentWidget
+ *   checkoutId="checkout_123"
+ *   amount={500}
+ *   currency="EUR"
+ *   locale="fr-FR"
+ * />
+ */
+
+interface Props {
+  /** SumUp checkout ID */
+  checkoutId: string;
+  /** Amount in cents (for display purposes) */
+  amount: number;
+  /** Currency code (default: EUR) */
+  currency?: string;
+  /** Locale for formatting (default: fr-FR) */
+  locale?: string;
+  /** Whether to show the amount display */
+  showAmount?: boolean;
+  /** Custom CSS class for the widget container */
+  class?: string;
+  /** Widget container ID */
+  id?: string;
+}
+
+const {
+  checkoutId,
+  amount,
+  currency = 'EUR',
+  locale = 'fr-FR',
+  showAmount = true,
+  class: className = '',
+  id = 'sumup-card-widget'
+} = Astro.props;
+
+// Format amount for display
+const formattedAmount = new Intl.NumberFormat(locale, {
+  style: 'currency',
+  currency
+}).format(amount / 100);
+---
+
+<div class:list={['payment-widget', className]} data-checkout-id={checkoutId}>
+  {showAmount && (
+    <div class="payment-amount-display">
+      <span class="payment-label">Montant à payer</span>
+      <span class="payment-amount">{formattedAmount}</span>
+    </div>
+  )}
+
+  <div id={id} class="sumup-widget-container">
+    <div class="payment-loading">
+      <div class="loading-spinner"></div>
+      <span>Chargement du formulaire de paiement...</span>
+    </div>
+  </div>
+
+  <div class="payment-status hidden" id="payment-status">
+    <div class="payment-success hidden" id="payment-success">
+      <span class="status-icon">&#x2713;</span>
+      <span class="status-text">Paiement effectué avec succès!</span>
+    </div>
+    <div class="payment-error hidden" id="payment-error">
+      <span class="status-icon">&#x2717;</span>
+      <span class="status-text" id="error-message">Une erreur est survenue</span>
+    </div>
+  </div>
+
+  <div class="payment-security-info">
+    <span class="security-icon">&#x1F512;</span>
+    <span class="security-text">Paiement sécurisé par SumUp</span>
+  </div>
+</div>
+
+<style>
+  .payment-widget {
+    --pw-border-color: var(--border-color, #e2e8f0);
+    --pw-bg: var(--bg-secondary, #f8fafc);
+    --pw-text: var(--text-primary, #1e293b);
+    --pw-text-muted: var(--text-muted, #64748b);
+    --pw-success: var(--color-success, #22c55e);
+    --pw-error: var(--color-error, #ef4444);
+    --pw-radius: var(--radius-lg, 12px);
+
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--pw-bg);
+    border: 1px solid var(--pw-border-color);
+    border-radius: var(--pw-radius);
+  }
+
+  .payment-amount-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--pw-border-color);
+  }
+
+  .payment-label {
+    color: var(--pw-text-muted);
+    font-size: 0.875rem;
+  }
+
+  .payment-amount {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--pw-text);
+  }
+
+  .sumup-widget-container {
+    min-height: 200px;
+    position: relative;
+  }
+
+  .payment-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 2rem;
+    color: var(--pw-text-muted);
+  }
+
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--pw-border-color);
+    border-top-color: var(--pw-text);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .payment-status {
+    padding: 1rem;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .payment-success,
+  .payment-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .payment-success {
+    background: color-mix(in srgb, var(--pw-success) 10%, transparent);
+    color: var(--pw-success);
+  }
+
+  .payment-error {
+    background: color-mix(in srgb, var(--pw-error) 10%, transparent);
+    color: var(--pw-error);
+  }
+
+  .status-icon {
+    font-size: 1.25rem;
+  }
+
+  .payment-security-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding-top: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--pw-text-muted);
+  }
+
+  .security-icon {
+    font-size: 0.875rem;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  /* SumUp widget overrides for better integration */
+  :global(.sumup-card-widget) {
+    font-family: inherit !important;
+  }
+
+  :global(.sumup-card-widget input) {
+    border-radius: 8px !important;
+  }
+</style>
+
+<script define:vars={{ checkoutId, id }}>
+  /**
+   * Payment Widget Script
+   * Initializes SumUp card widget and handles payment events
+   */
+
+  const SUMUP_SDK_URL = 'https://gateway.sumup.com/gateway/ecom/card/v2/sdk.js';
+
+  // State
+  let widgetMounted = false;
+  let sumupWidget = null;
+
+  /**
+   * Load the SumUp SDK script dynamically
+   * @returns {Promise<void>}
+   */
+  function loadSumUpSDK() {
+    return new Promise((resolve, reject) => {
+      // Check if already loaded
+      if (window.SumUpCard) {
+        resolve();
+        return;
+      }
+
+      // Check if script is already loading
+      const existingScript = document.querySelector(`script[src="${SUMUP_SDK_URL}"]`);
+      if (existingScript) {
+        existingScript.addEventListener('load', resolve);
+        existingScript.addEventListener('error', reject);
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = SUMUP_SDK_URL;
+      script.async = true;
+      script.onload = resolve;
+      script.onerror = () => reject(new Error('Failed to load SumUp SDK'));
+      document.head.appendChild(script);
+    });
+  }
+
+  /**
+   * Mount the SumUp card widget
+   */
+  async function mountWidget() {
+    if (widgetMounted) return;
+
+    try {
+      await loadSumUpSDK();
+
+      const container = document.getElementById(id);
+      const loadingEl = container.querySelector('.payment-loading');
+
+      if (!window.SumUpCard) {
+        throw new Error('SumUp SDK not available');
+      }
+
+      // Initialize the widget
+      sumupWidget = window.SumUpCard.mount({
+        id,
+        checkoutId,
+        locale: 'fr-FR',
+        onLoad: () => {
+          if (loadingEl) loadingEl.remove();
+          widgetMounted = true;
+          dispatchEvent('payment-widget-ready', { checkoutId });
+        },
+        onResponse: (type, body) => {
+          handlePaymentResponse(type, body);
+        },
+        onError: (error) => {
+          handlePaymentError(error);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to mount SumUp widget:', error);
+      handlePaymentError(error);
+    }
+  }
+
+  /**
+   * Handle payment response from SumUp
+   * @param {string} type - Response type: 'success', 'error', 'sent'
+   * @param {object} body - Response body
+   */
+  function handlePaymentResponse(type, body) {
+    const statusContainer = document.getElementById('payment-status');
+    const successEl = document.getElementById('payment-success');
+    const errorEl = document.getElementById('payment-error');
+    const widgetContainer = document.getElementById(id);
+
+    statusContainer.classList.remove('hidden');
+
+    if (type === 'success') {
+      successEl.classList.remove('hidden');
+      errorEl.classList.add('hidden');
+      widgetContainer.classList.add('hidden');
+
+      dispatchEvent('payment-success', {
+        checkoutId,
+        transactionCode: body?.transaction_code,
+        transactionId: body?.transaction_id
+      });
+    } else if (type === 'error') {
+      successEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+
+      const errorMessage = document.getElementById('error-message');
+      if (errorMessage && body?.message) {
+        errorMessage.textContent = body.message;
+      }
+
+      dispatchEvent('payment-error', {
+        checkoutId,
+        error: body?.message || 'Payment failed',
+        code: body?.error_code
+      });
+    } else if (type === 'sent') {
+      // Payment request sent, waiting for response
+      dispatchEvent('payment-processing', { checkoutId });
+    }
+  }
+
+  /**
+   * Handle widget/payment errors
+   * @param {Error|object} error - Error object
+   */
+  function handlePaymentError(error) {
+    const statusContainer = document.getElementById('payment-status');
+    const errorEl = document.getElementById('payment-error');
+    const errorMessage = document.getElementById('error-message');
+
+    statusContainer.classList.remove('hidden');
+    errorEl.classList.remove('hidden');
+
+    if (errorMessage) {
+      errorMessage.textContent = error.message || 'Une erreur est survenue lors du chargement';
+    }
+
+    dispatchEvent('payment-error', {
+      checkoutId,
+      error: error.message || 'Widget initialization failed'
+    });
+  }
+
+  /**
+   * Dispatch custom events for external handling
+   * @param {string} name - Event name
+   * @param {object} detail - Event detail
+   */
+  function dispatchEvent(name, detail) {
+    const event = new CustomEvent(name, {
+      detail,
+      bubbles: true
+    });
+    document.dispatchEvent(event);
+  }
+
+  // Initialize widget when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', mountWidget);
+  } else {
+    mountWidget();
+  }
+
+  // Expose methods for external control
+  window.PaymentWidget = window.PaymentWidget || {};
+  window.PaymentWidget[checkoutId] = {
+    unmount: () => {
+      if (sumupWidget && typeof sumupWidget.unmount === 'function') {
+        sumupWidget.unmount();
+        widgetMounted = false;
+      }
+    },
+    isReady: () => widgetMounted
+  };
+</script>

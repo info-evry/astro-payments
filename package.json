@@ -1,0 +1,31 @@
+{
+  "name": "astro-payments",
+  "version": "1.0.0",
+  "description": "Payment integration module for Astro projects - SumUp checkout and pricing utilities",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./lib/*": "./src/lib/*.js",
+    "./components/*": "./src/components/*.astro"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "astro",
+    "payments",
+    "sumup",
+    "checkout"
+  ],
+  "author": "Info Evry",
+  "license": "MIT",
+  "devDependencies": {
+    "vitest": "^2.1.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/info-evry/astro-payments.git"
+  }
+}
