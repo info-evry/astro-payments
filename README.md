@@ -41,4 +41,4 @@ bun run test:watch
 
 ## License
 
-MIT
+AGPL-3.0 - Asso Info Evry
