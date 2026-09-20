@@ -7,7 +7,7 @@
   "exports": {
     ".": "./src/index.js",
     "./lib/*": "./src/lib/*.js",
-    "./components/*": "./src/components/*.astro"
+    "./components/*.astro": "./src/components/*.astro"
   },
   "scripts": {
     "test": "vitest run",
