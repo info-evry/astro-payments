@@ -22,7 +22,7 @@
   "author": "Info Evry",
   "license": "AGPL-3.0-only",
   "devDependencies": {
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.11"
   },
   "repository": {
     "type": "git",
